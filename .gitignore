@@ -1,0 +1,9 @@
+.venv
+.vscode
+private
+.terraform
+.terraform.lock.hcl
+infra/builds
+__pycache__
+target
+.DS_store
