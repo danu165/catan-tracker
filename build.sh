@@ -25,7 +25,6 @@ docker rm -f dummypython
 
 # Build AWS infra
 cd infra
-terraform --version
 terraform init \
 -backend-config="bucket=${bucket}" \
 -backend-config="key=${stateS3Key}" \

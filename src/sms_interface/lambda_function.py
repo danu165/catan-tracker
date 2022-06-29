@@ -39,10 +39,10 @@ class GoogleSheets:
         scoped_credentials = credentials.with_scopes(["https://www.googleapis.com/auth/spreadsheets"])
         self.service = discovery.build("sheets", "v4", credentials=scoped_credentials).spreadsheets()
         self.sheet_name = sheet_name
-        self.get_last_row_and_col()
-        self.get_current_columns()
+        self._get_last_row_and_col()
+        self._get_current_columns()
 
-    def get_last_row_and_col(self):
+    def _get_last_row_and_col(self):
         # This gets the last row and column by creating an empty table. It uses the range of the empty table
         # to determine the last row and column.
         table = {"majorDimension": "ROWS", "values": []}
@@ -66,7 +66,7 @@ class GoogleSheets:
         return last_row, last_col
 
     @staticmethod
-    def excel_column_name(n):
+    def _excel_column_name(n):
         """Converts a number to an excel column name. IE. 1 => A, 27 => AA, 53 => BA, etc."""
 
         result = ""
@@ -80,7 +80,7 @@ class GoogleSheets:
         return result[::-1]
 
     @staticmethod
-    def excel_column_number(name):
+    def _excel_column_number(name):
         """Excel-style column name to number, IE. A => 1, Z => 26, AA => 27, BA => 53."""
 
         n = 0
@@ -88,10 +88,14 @@ class GoogleSheets:
             n = n * 26 + 1 + ord(c) - ord("A")
         return n
 
-    def get_current_columns(self):
+    def _get_current_columns(self):
         result = self.service.values().get(spreadsheetId=SPREADSHEET_ID, range=f"A1:{self.last_col}1").execute()
         self.columns = result["values"][0]
         return self.columns
+
+    def _update_values(self, range, data):
+        params = dict(spreadsheetId=SPREADSHEET_ID, body=data, range=range, valueInputOption="USER_ENTERED")
+        self.service.values().update(**params).execute()
 
     def update_columns(self, data_dict):
         additional_columns = [k for k in data_dict.keys() if k not in self.columns]
@@ -100,14 +104,14 @@ class GoogleSheets:
             print(additional_columns)
 
             # Get range that needs to be updated
-            current_col_num = self.excel_column_number(self.last_col)
-            next_col = self.excel_column_name(current_col_num + 1)
-            new_last_col = self.excel_column_name(current_col_num + len(additional_columns))
+            current_col_num = self._excel_column_number(self.last_col)
+            next_col = self._excel_column_name(current_col_num + 1)
+            new_last_col = self._excel_column_name(current_col_num + len(additional_columns))
             new_col_range = f"{next_col}1:{new_last_col}1"
 
             # Update the values for the range
             data = {"values": [additional_columns]}
-            self.update_values(new_col_range, data)
+            self._update_values(new_col_range, data)
 
             # Update the recorded last column and column list
             self.last_col = new_last_col
@@ -124,12 +128,8 @@ class GoogleSheets:
             data_values.append(data_dict.get(col))
         data = {"values": [data_values]}
         print("Updating")
-        self.update_values(range_name, data)
+        self._update_values(range_name, data)
         self.last_row = next_row
-
-    def update_values(self, range, data):
-        params = dict(spreadsheetId=SPREADSHEET_ID, body=data, range=range, valueInputOption="USER_ENTERED")
-        self.service.values().update(**params).execute()
 
     def get_all_data(self):
         range_name = f"{self.sheet_name}!A2:{self.last_col}{self.last_row}"
@@ -139,10 +139,10 @@ class GoogleSheets:
 
 def determine_winner(jess_record, dan_record):
     if jess_record > dan_record:
-        return f"Jess leads {jess_record}-{dan_record}"
+        return f"Jess is winning {jess_record}-{dan_record}"
 
     if dan_record > jess_record:
-        return f"Dan leads {dan_record}-{jess_record}"
+        return f"Dan is winning {dan_record}-{jess_record}"
 
     return f"it's a tie {jess_record}-{dan_record}"
 
@@ -171,11 +171,11 @@ def build_response(df, df_game, df_all_conditions, winner, game, score_diff, sco
 
     str_time = "times" if score_diff_wins > 1 else "time"
     response = (
-        f"Congrats {winner}! "
-        f"Overall {overall_winner}. "
-        f"For game '{game}', {game_type_winner}. "
-        f"{winner} has won by {score_diff} in this game {score_diff_wins} {str_time}. "
-        f"For all matching conditions, {conditions_winner}. "
+        f"Congrats {winner}!\n"
+        f"Overall, {overall_winner}.\n"
+        f"{game_type_winner} in {game}.\n"
+        f"{winner} has won by {score_diff} in this game {score_diff_wins} {str_time}.\n"
+        f"For all matching conditions, {conditions_winner}."
     )
 
     return response

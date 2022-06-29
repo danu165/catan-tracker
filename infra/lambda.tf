@@ -12,18 +12,18 @@ resource "aws_lambda_layer_version" "lambda_layer" {
 
 module "lambda_function" {
   for_each = toset(local.lambdas)
-  source = "terraform-aws-modules/lambda/aws"
-  version = "v3.3.1"
+  source   = "terraform-aws-modules/lambda/aws"
+  version  = "v3.3.1"
 
   function_name = "${local.project_name}-${each.value}-${local.branch_hash}"
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
   publish       = true
   timeout       = 60
-  memory_size  = 512
+  memory_size   = 512
 
   source_path = "../src/${each.value}"
-  role_name = "${local.project_name}-${each.value}-${local.branch_hash}"
+  role_name   = "${local.project_name}-${each.value}-${local.branch_hash}"
 
   allowed_triggers = {
     ApiGw = {
@@ -33,8 +33,4 @@ module "lambda_function" {
   }
 
   layers = [aws_lambda_layer_version.lambda_layer.arn]
-
-  environment_variables = {
-    GOOGLE_CLOUD_PROJECT = "catantracker"
-  }
 }

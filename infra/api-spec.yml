@@ -37,7 +37,6 @@ paths:
               #end
             #end
             }
-      x-amazon-apigateway-gateway-responses:
         
 definitions:
   Empty: {}
