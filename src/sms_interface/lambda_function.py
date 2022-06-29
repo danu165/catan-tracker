@@ -14,9 +14,11 @@ SPREADSHEET_ID = "1-o3tpUS70-2iDRfhVVWWNVpEsSBuR0fCdFpU8DJzN_Y"
 def convert_message_to_dictionary(received_message):
     now = dt.now(ZoneInfo("America/Los_Angeles"))
     message_parts = received_message.split(".")
+    winner, score_difference = message_parts[0].strip().split(" by ")
     my_dict = {
         "Game date": f"{now.month}/{now.day}/{now.year}",
-        "Winner": message_parts[0].strip(),
+        "Winner": winner,
+        "Score difference": score_difference,
         "Game": message_parts[1].strip(),
     }
     if len(message_parts) > 2:
@@ -184,11 +186,10 @@ def lambda_handler(event, context):
     # Get all of the current data
     # Create a filtered dataframe for just the game
     # Create a filtered dataframe for all of the current conditions. Ignore Game Date and Winner for the query.
-    all_data = sheets.get_all_data()
-    df = pd.DataFrame(all_data, columns=sheets.columns)
+    df = pd.DataFrame(sheets.get_all_data(), columns=sheets.columns)
     game = data_dict["Game"]
     df_game = df[df["Game"] == game]
-    query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ["Game date", "Winner"]])
+    query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ["Game date", "Winner", "Score difference"]])
     df_all_conditions = df.query(query)
 
     # Build and send response
