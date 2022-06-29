@@ -31,6 +31,8 @@ def convert_message_to_dictionary(received_message):
 
 
 class GoogleSheets:
+    """Works with data in Google Sheets and updates the known last row and last column of a dataset as it goes."""
+
     def __init__(self, credentials_filepath, sheet_name="Sheet1"):
         raw_creds = json.load(open(credentials_filepath))
         credentials = aws.Credentials.from_info(raw_creds)
@@ -125,10 +127,9 @@ class GoogleSheets:
         self.update_values(range_name, data)
         self.last_row = next_row
 
-    def update_values(self, range_name, data):
-        self.service.values().update(
-            spreadsheetId=SPREADSHEET_ID, body=data, range=range_name, valueInputOption="USER_ENTERED"
-        ).execute()
+    def update_values(self, range, data):
+        params = dict(spreadsheetId=SPREADSHEET_ID, body=data, range=range, valueInputOption="USER_ENTERED")
+        self.service.values().update(**params).execute()
 
     def get_all_data(self):
         range_name = f"{self.sheet_name}!A2:{self.last_col}{self.last_row}"
@@ -138,18 +139,21 @@ class GoogleSheets:
 
 def determine_winner(jess_record, dan_record):
     if jess_record > dan_record:
-        return f"Jess is winning {jess_record}-{dan_record}"
+        return f"Jess leads {jess_record}-{dan_record}"
 
     if dan_record > jess_record:
-        return f"Dan is winning {dan_record}-{jess_record}"
+        return f"Dan leads {dan_record}-{jess_record}"
 
     return f"it's a tie {jess_record}-{dan_record}"
 
 
-def build_response(df, df_game, df_all_conditions, winner, game):
+def build_response(df, df_game, df_all_conditions, winner, game, score_diff, score_diff_wins):
     """
-    Builds a message response based on the overall record, the record for just the game played,
-    and the record for the current conditions
+    Builds a message response based on:
+        1. The overall record
+        2. The record for just the game played
+        3. The amount of times the winner has won the game by the same score difference
+        4. The record for the current conditions
     """
 
     # Get all of the records
@@ -165,7 +169,14 @@ def build_response(df, df_game, df_all_conditions, winner, game):
     game_type_winner = determine_winner(jess_game_record, dan_game_record)
     conditions_winner = determine_winner(jess_conditions_record, dan_conditions_record)
 
-    response = f"Congrats {winner}! Overall {overall_winner}. For game '{game}', {game_type_winner}. For all matching conditions, {conditions_winner}."
+    str_time = "times" if score_diff_wins > 1 else "time"
+    response = (
+        f"Congrats {winner}! "
+        f"Overall {overall_winner}. "
+        f"For game '{game}', {game_type_winner}. "
+        f"{winner} has won by {score_diff} in this game {score_diff_wins} {str_time}. "
+        f"For all matching conditions, {conditions_winner}. "
+    )
 
     return response
 
@@ -185,14 +196,18 @@ def lambda_handler(event, context):
 
     # Get all of the current data
     # Create a filtered dataframe for just the game
-    # Create a filtered dataframe for all of the current conditions. Ignore Game Date and Winner for the query.
+    # Create a filtered dataframe for the score difference, winner, and game
+    # Create a filtered dataframe for all the current conditions. Ignore some columns so that not too much is filtered.
     df = pd.DataFrame(sheets.get_all_data(), columns=sheets.columns)
-    game = data_dict["Game"]
+    game, score_diff, winner = data_dict["Game"], data_dict["Score difference"], data_dict["Winner"]
     df_game = df[df["Game"] == game]
-    query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ["Game date", "Winner", "Score difference"]])
+    df_score_and_game = df[(df["Game"] == game) & (df["Score difference"] == score_diff) & (df["Winner"] == winner)]
+    ignore_columns = ["Game date", "Winner", "Score difference"]
+    query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ignore_columns])
     df_all_conditions = df.query(query)
 
     # Build and send response
-    response = build_response(df, df_game, df_all_conditions, data_dict["Winner"], game)
+    score_diff_wins = len(df_score_and_game.index)
+    response = build_response(df, df_game, df_all_conditions, winner, game, score_diff, score_diff_wins)
     print(response)
     return f'<?xml version="1.0" encoding="UTF-8"?>' f"<Response><Message><Body>{response}</Body></Message></Response>"
