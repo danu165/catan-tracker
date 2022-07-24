@@ -11,9 +11,29 @@ from google.auth import aws
 SPREADSHEET_ID = "1-o3tpUS70-2iDRfhVVWWNVpEsSBuR0fCdFpU8DJzN_Y"
 
 
+def validate_message(message_parts):
+    errors = []
+    score_difference = message_parts[0].strip()
+    game_name = message_parts[1].strip().lower()
+
+    if not re.search(r"by \d", score_difference):
+        errors.append("The first sentence should follow the format of 'Jess by 5'")
+
+    if "jess" in game_name or "dan" in game_name:
+        errors.append("The second sentence should only be the game name")
+
+    if errors:
+        error_messages = ". ".join(errors)
+        raise Exception(f"The message was not sent in the correct format. {error_messages}")
+
+
 def convert_message_to_dictionary(received_message):
-    now = dt.now(ZoneInfo("America/Los_Angeles"))
+    # Validate the message parts
     message_parts = received_message.split(".")
+    validate_message(message_parts)
+
+    # Transform the message to a dictionary
+    now = dt.now(ZoneInfo("America/Los_Angeles"))
     winner, score_difference = message_parts[0].strip().split(" by ")
     my_dict = {
         "Game date": f"{now.month}/{now.day}/{now.year}",
@@ -184,30 +204,33 @@ def build_response(df, df_game, df_all_conditions, winner, game, score_diff, sco
 def lambda_handler(event, context):
     # Convert message to a dictionary
     print(event)
-    received_message = unquote_plus(event["Body"])
-    data_dict = convert_message_to_dictionary(received_message)
-    print("Converted data")
-    print(data_dict)
+    try:
+        received_message = unquote_plus(event["Body"])
+        data_dict = convert_message_to_dictionary(received_message)
+        print("Converted data")
+        print(data_dict)
 
-    # Input data into google sheets
-    sheets = GoogleSheets("googlecreds.json")
-    sheets.update_columns(data_dict)
-    sheets.add_data(data_dict)
+        # Input data into google sheets
+        sheets = GoogleSheets("googlecreds.json")
+        sheets.update_columns(data_dict)
+        sheets.add_data(data_dict)
 
-    # Get all of the current data
-    # Create a filtered dataframe for just the game
-    # Create a filtered dataframe for the score difference, winner, and game
-    # Create a filtered dataframe for all the current conditions. Ignore some columns so that not too much is filtered.
-    df = pd.DataFrame(sheets.get_all_data(), columns=sheets.columns)
-    game, score_diff, winner = data_dict["Game"], data_dict["Score difference"], data_dict["Winner"]
-    df_game = df[df["Game"] == game]
-    df_score_and_game = df[(df["Game"] == game) & (df["Score difference"] == score_diff) & (df["Winner"] == winner)]
-    ignore_columns = ["Game date", "Winner", "Score difference"]
-    query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ignore_columns])
-    df_all_conditions = df.query(query)
+        # Get all of the current data
+        # Create a filtered dataframe for just the game
+        # Create a filtered dataframe for the score difference, winner, and game
+        # Create a filtered dataframe for all current conditions. Ignore some columns so that not too much is filtered.
+        df = pd.DataFrame(sheets.get_all_data(), columns=sheets.columns)
+        game, score_diff, winner = data_dict["Game"], data_dict["Score difference"], data_dict["Winner"]
+        df_game = df[df["Game"] == game]
+        df_score_and_game = df[(df["Game"] == game) & (df["Score difference"] == score_diff) & (df["Winner"] == winner)]
+        ignore_columns = ["Game date", "Winner", "Score difference"]
+        query = " & ".join([f'`{k}` == "{v}"' for k, v in data_dict.items() if k not in ignore_columns])
+        df_all_conditions = df.query(query)
 
-    # Build and send response
-    score_diff_wins = len(df_score_and_game.index)
-    response = build_response(df, df_game, df_all_conditions, winner, game, score_diff, score_diff_wins)
+        # Build and send response
+        score_diff_wins = len(df_score_and_game.index)
+        response = build_response(df, df_game, df_all_conditions, winner, game, score_diff, score_diff_wins)
+    except Exception as e:
+        response = f"{e.__class__.__name__}: {e}"
     print(response)
-    return f'<?xml version="1.0" encoding="UTF-8"?>' f"<Response><Message><Body>{response}</Body></Message></Response>"
+    return f'<?xml version="1.0" encoding="UTF-8"?>Response><Message><Body>{response}</Body></Message></Response>'
