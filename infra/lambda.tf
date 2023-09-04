@@ -22,6 +22,10 @@ module "lambda_function" {
   timeout       = 60
   memory_size   = 512
 
+  environment_variables = {
+    SNS_TOPIC_ARN = aws_sns_topic.sender.arn
+  }
+
   source_path = "../src/${each.value}"
   role_name   = "${local.project_name}-${each.value}-${local.branch_hash}"
 
@@ -29,6 +33,15 @@ module "lambda_function" {
     ApiGw = {
       principal  = "apigateway.amazonaws.com"
       source_arn = "${aws_api_gateway_rest_api.dt.execution_arn}/*/*"
+    }
+  }
+
+  attach_policy_statements = true
+  policy_statements = {
+    sns = {
+      effect    = "Allow"
+      actions   = ["sns:Publish"]
+      resources = [aws_sns_topic.sender.arn]
     }
   }
 

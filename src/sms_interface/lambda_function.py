@@ -1,9 +1,11 @@
 import json
+import os
 import re
 from datetime import datetime as dt
 from urllib.parse import unquote_plus
 from zoneinfo import ZoneInfo
 
+import boto3
 import pandas as pd
 from apiclient import discovery
 from google.auth import aws
@@ -233,4 +235,7 @@ def lambda_handler(event, context):
     except Exception as e:
         response = f"{e.__class__.__name__}: {e}"
     print(response)
+    sns = boto3.client("sns")
+    sns_response = sns.publish(TopicArn=os.environ["SNS_TOPIC_ARN"], Message=response)
+    print(sns_response)
     return f'<?xml version="1.0" encoding="UTF-8"?>Response><Message><Body>{response}</Body></Message></Response>'
