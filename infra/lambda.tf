@@ -10,10 +10,18 @@ resource "aws_lambda_layer_version" "lambda_layer" {
   compatible_runtimes = ["python3.9"]
 }
 
+data "aws_iam_policy_document" "permissions" {
+  statement {
+    sid       = "sns"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.sns.arn]
+  }
+}
+
 module "lambda_function" {
   for_each = toset(local.lambdas)
   source   = "terraform-aws-modules/lambda/aws"
-  version  = "v3.3.1"
+  version  = "v6.5.0"
 
   function_name = "${local.project_name}-${each.value}-${local.branch_hash}"
   handler       = "lambda_function.lambda_handler"
@@ -26,11 +34,18 @@ module "lambda_function" {
   role_name   = "${local.project_name}-${each.value}-${local.branch_hash}"
 
   allowed_triggers = {
-    ApiGw = {
-      principal  = "apigateway.amazonaws.com"
-      source_arn = "${aws_api_gateway_rest_api.dt.execution_arn}/*/*"
+    SNS = {
+      principal  = "sns.amazonaws.com"
+      source_arn = aws_sns_topic.sns.arn
     }
   }
+
+  environment_variables = {
+    SNS_TOPIC_ARN = aws_sns_topic.sns.arn
+  }
+
+  attach_policy_json = true
+  policy_json        = data.aws_iam_policy_document.permissions.json
 
   layers = [aws_lambda_layer_version.lambda_layer.arn]
 }

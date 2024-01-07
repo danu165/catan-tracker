@@ -1,8 +1,3 @@
-output "api_endpoint" {
-  value       = local.api_endpoint
-  description = "This endpoint is used by twilio to send a message"
-}
-
 output "git_branch" {
   value = local.git_branch
 }

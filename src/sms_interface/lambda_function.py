@@ -1,9 +1,10 @@
 import json
 import re
+import os
 from datetime import datetime as dt
-from urllib.parse import unquote_plus
 from zoneinfo import ZoneInfo
 
+import boto3
 import pandas as pd
 from apiclient import discovery
 from google.auth import aws
@@ -204,8 +205,9 @@ def build_response(df, df_game, df_all_conditions, winner, game, score_diff, sco
 def lambda_handler(event, context):
     # Convert message to a dictionary
     print(event)
+    sns = boto3.client("sns")
     try:
-        received_message = unquote_plus(event["Body"])
+        received_message = event["Records"][0]["Sns"]["Message"]
         data_dict = convert_message_to_dictionary(received_message)
         print("Converted data")
         print(data_dict)
@@ -232,5 +234,5 @@ def lambda_handler(event, context):
         response = build_response(df, df_game, df_all_conditions, winner, game, score_diff, score_diff_wins)
     except Exception as e:
         response = f"{e.__class__.__name__}: {e}"
-    print(response)
-    return f'<?xml version="1.0" encoding="UTF-8"?>Response><Message><Body>{response}</Body></Message></Response>'
+    sns.publish(TopicArn=os.environ["SNS_TOPIC_ARN"], Message=response)
+    return response

@@ -4,7 +4,6 @@ A fun little project that helps my wife and I keep track of our Catan record.
 
 Built with:
 * AWS
-* Twilio
 * Google Sheets
   * To authenticate to Google Sheets from AWS, Google's new feature of workload identity pools is used.
     * This means there are no long term credentials stored anywhere :raised_hands:

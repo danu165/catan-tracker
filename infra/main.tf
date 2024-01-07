@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "4.9.0"
+      version = "5.31.0"
     }
   }
 
@@ -25,10 +25,9 @@ locals {
   project_name = "catan-tracker"
 
   # Computed
-  api_endpoint = "${aws_api_gateway_deployment.dt.invoke_url}${aws_api_gateway_stage.stage.stage_name}"
-  git_branch   = var.git_branch == null ? data.external.get_current_branch.result.branch : var.git_branch
-  account_id   = data.aws_caller_identity.current.account_id
-  region       = data.aws_region.current.name
+  git_branch = var.git_branch == null ? data.external.get_current_branch.result.branch : var.git_branch
+  account_id = data.aws_caller_identity.current.account_id
+  region     = data.aws_region.current.name
 
   # Calculated based on env
   is_main     = local.git_branch == "main"
