@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catan Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 5;
+            background-color: #f2f2f2;
+        }
+
+        .chat-container {
+            max-width: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .sender {
+            justify-content: flex-end;
+        }
+
+        .receiver {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+        }
+
+        .sender .message-bubble {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .receiver .message-bubble {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" id="chatContainer">
+        {% for message in messages%}
+            <div class="message {{ message.who }}"><div class="message-bubble">{{ message.body }}</div></div>
+        {% endfor %}
+    </div>
+
+    <div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        window.scrollTo(0, document.body.scrollHeight);
+
+        document.getElementById('messageInput').addEventListener('keypress', function (e) {
+            console.log(e.key)
+            if (e.key === 'Enter') {
+                // Prevent the default form submission
+                e.preventDefault();
+
+                // Trigger the click event on the submit button
+                document.querySelector('button').click();
+            }
+        });
+
+        function getCurrentUrl() {
+          return trim(window.location.origin + window.location.pathname, "/")
+        }
+
+
+        async function sendMessage() {
+            var messageInput = document.getElementById('messageInput');
+            var chatContainer = document.getElementById('chatContainer');
+
+            var messageText = messageInput.value.trim();
+            if (messageText !== '') {
+                const requestOptions = {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      message: messageText
+                    })
+                }
+                response = await fetch(`${getCurrentUrl()}/send`, requestOptions)
+                responseText = await response.text()
+
+                if (!response.ok) {
+                    // If the response was not ok, alert
+                    console.error(responseText)
+                    alert(`Error sending message: ${responseText}`)
+                }
+                else {
+                    var messageDiv1 = document.createElement('div');
+                    var messageDiv2 = document.createElement('div');
+
+                    messageDiv1.className = 'message sender';
+                    messageDiv1.innerHTML = '<div class="message-bubble">' + messageText + '</div>';
+
+                    messageDiv2.className = 'message receiver';
+                    messageDiv2.innerHTML = '<div class="message-bubble">' + responseText + '</div>';
+
+                    chatContainer.appendChild(messageDiv1);
+                    chatContainer.appendChild(messageDiv2);
+
+                    // Clear the input field after sending the message
+                    messageInput.value = '';
+                }
+
+
+            }
+        }
+        /*
+        HELPER FUNCTIONS
+        */
+
+        function trim (s, c) {
+          if (c === "]") c = "\\]";
+          if (c === "^") c = "\\^";
+          if (c === "\\") c = "\\\\";
+          return s.replace(new RegExp(
+            "^[" + c + "]+|[" + c + "]+$", "g"
+          ), "");
+        }
+    </script>
+</body>
+</html>

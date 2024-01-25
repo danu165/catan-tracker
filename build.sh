@@ -3,9 +3,8 @@
 # Variable setup
 set -e -x
 bucket=$(aws ssm get-parameter --name "/tf_state/bucket_name" --query 'Parameter.Value' --output text)
-gitBranch=$(git rev-parse --abbrev-ref HEAD)
 projectName=${PWD##*/}
-stateS3Key="${projectName}/${gitBranch}/state.json"
+stateS3Key="${projectName}/prod/state.json"
 awsRegion="${AWS_DEFAULT_REGION:-us-west-2}"
 
 # Zip python dependencies in docker container for Lambda Layer

@@ -10,3 +10,10 @@ Built with:
 
 
 We text a phone number our results and then we get a response of our current record for the overall game, the specific game type we played, and the conditions of the environment we were in.
+
+## Local Development
+Note: not currently working
+```
+cd flask
+flask run
+```
