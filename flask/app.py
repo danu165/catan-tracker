@@ -37,6 +37,7 @@ def format_event(req):
 
 @app.route("/", methods=["GET"])
 @app.route("/send", methods=["POST"])
+@app.route("/login", methods=["POST"])
 def forward_request():
     set_env_vars.main()
     event = format_event(request)

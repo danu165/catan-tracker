@@ -71,6 +71,3 @@ data "aws_iam_policy_document" "frontend_permissions" {
   }
 
 }
-
-# TODO:
-# Cognito or something in front of API gateway

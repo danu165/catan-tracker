@@ -41,6 +41,26 @@ paths:
         passthroughBehavior: "when_no_match"
         type: "aws_proxy"
 
+  /login:
+    post:
+      produces:
+        - "application/json"
+      consumes:
+        - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+          schema:
+            $ref: "#/definitions/Empty"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri: "${LAMBDA_INVOCATION_URI}"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        type: "aws_proxy"
+
 definitions:
   Empty:
     type: "object"

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catan Tracker</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,6 +61,13 @@
     </style>
 </head>
 <body>
+  {% if flow == 'sign-in' %}
+    <div id="g_id_onload"
+         data-client_id="1077539777253-otfgo51h91fnb0c00j1bgdvoi3a3fboe.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div class="g_id_signin" data-type="standard"></div>
+  {% else %}
     <div class="chat-container" id="chatContainer">
         {% for message in messages%}
             <div class="message {{ message.who }}"><div class="message-bubble">{{ message.body }}</div></div>
@@ -70,6 +78,7 @@
         <input type="text" id="messageInput" placeholder="Type your message...">
         <button onclick="sendMessage()">Send</button>
     </div>
+  {% endif %}
 
     <script>
         window.scrollTo(0, document.body.scrollHeight);
@@ -84,6 +93,19 @@
                 document.querySelector('button').click();
             }
         });
+
+        function handleCredentialResponse(response) {
+            const responsePayload = decodeJwtResponse(response.credential);
+            console.log("Email: " + responsePayload.email);
+            const requestOptions = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({"credential": response.credential}),
+                credentials: "same-origin"
+            };
+            console.log("Sending request")
+            fetch(`${getCurrentUrl()}/login`, requestOptions).then((r) => location.reload());
+        }
 
         function getCurrentUrl() {
           return trim(window.location.origin + window.location.pathname, "/")
@@ -143,6 +165,38 @@
             "^[" + c + "]+|[" + c + "]+$", "g"
           ), "");
         }
+
+        function decodeJwtResponse (token) {
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
+        }
+
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
     </script>
 </body>
 </html>

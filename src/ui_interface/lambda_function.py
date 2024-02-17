@@ -9,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 import pandas as pd
 from apiclient import discovery
 from google.auth import aws
+from http.cookies import SimpleCookie
 
 SPREADSHEET_ID = "1-o3tpUS70-2iDRfhVVWWNVpEsSBuR0fCdFpU8DJzN_Y"
 
@@ -22,6 +23,25 @@ def get_s3_json(bucket: str, key: str) -> dict:
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=bucket, Key=key)
     return json.loads(obj["Body"].read().decode())
+
+
+def convert_cookies_to_dict(cookie_string: str) -> dict:
+    """
+    Transforms a cookie string into a dictionary
+    Args:
+        cookie_string (str): Cookie string
+    Returns:
+        dict
+    """
+    if cookie_string:
+        cookie = SimpleCookie()
+        cookie.load(cookie_string)
+        cookies = {}
+        for key, morsel in cookie.items():
+            cookies[key] = morsel.value
+        return cookies
+    else:
+        return {}
 
 
 def validate_message(message_parts):
@@ -301,6 +321,11 @@ def get_messages():
     return messages
 
 
+def validate_cookies(cookies: dict) -> bool:
+    # TODO: compare encrypted version of email
+    return "CT_CR" in cookies
+
+
 def get_home(event: dict) -> dict:
     """
     Returns an HTML page based on whether a user needs to sign in, is already signed in, or signs in for the first time
@@ -311,15 +336,28 @@ def get_home(event: dict) -> dict:
     """
     en = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates"), encoding="utf8"))
     template = en.get_template("index.html")
-    html = template.render(messages=get_messages())
+    headers = event.get("headers", {}) or {}
+    cookies = convert_cookies_to_dict(headers.get("cookie") or headers.get("Cookie"))
+    flow = "home" if validate_cookies(cookies) else "sign-in"
+    html = template.render(messages=get_messages(), flow=flow)
     response_headers = {"Content-Type": "html"}
 
     return response(200, html, response_headers)
 
 
+def login(event):
+    event_body = json.loads(event["body"])
+    cookie_to_set = event_body["credential"]
+    response_headers = {"Set-Cookie": f"CT_CR={cookie_to_set}; httpOnly;"}
+    return response(200, "login success", response_headers)
+
+
 def lambda_handler(event, context):
     # Dispatch the request
+    print(event)
     if event["path"] == "/" and event["httpMethod"] == "GET":
         return get_home(event)
     elif event["path"] == "/send" and event["httpMethod"] == "POST":
         return send_score(event)
+    elif event["path"] == "/login" and event["httpMethod"] == "POST":
+        return login(event)
